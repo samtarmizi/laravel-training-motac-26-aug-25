@@ -15,4 +15,9 @@ class InventoryController extends Controller
         // return to view with $inventories (resources/views/inventories/index.blade.php)
         return view('inventories.index', compact('inventories'));
     }
+
+    public function create()
+    {
+        return view('inventories.create');
+    }
 }

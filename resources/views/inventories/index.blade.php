@@ -14,6 +14,7 @@
                                 <th>ID</th>
                                 <th>Name</th>
                                 <th>Quantity</th>
+                                <th>Serial No</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -23,6 +24,7 @@
                                     <td>{{ $inventory->id }}</td>
                                     <td>{{ $inventory->name }}</td>
                                     <td>{{ $inventory->quantity }}</td>  
+                                    <td>{{ $inventory->serial_no }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
