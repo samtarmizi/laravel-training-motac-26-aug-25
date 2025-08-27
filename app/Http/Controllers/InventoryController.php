@@ -20,4 +20,21 @@ class InventoryController extends Controller
     {
         return view('inventories.create');
     }
+
+    public function store(Request $request)
+    {
+        // store in the table 'inventories' using model
+
+        // POPO - Plain Old PHP Object
+        $inventory = new Inventory();
+        $inventory->name = $request->name;
+        $inventory->quantity = $request->quantity;
+        $inventory->color = $request->color;
+        $inventory->serial_no = $request->serial_no;
+        $inventory->save();
+
+        // return to inventory index
+        return redirect('/inventories');
+        
+    }
 }
