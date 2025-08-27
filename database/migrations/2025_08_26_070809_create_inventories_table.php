@@ -17,6 +17,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->string('color')->nullable();
             $table->string('serial_no');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->timestamps();
         });
     }
