@@ -42,4 +42,9 @@ class InventoryController extends Controller
     {
         return view('inventories.show', compact('inventory'));
     }
+
+    public function edit(Inventory $inventory)
+    {
+        return view('inventories.edit', compact('inventory'));
+    }
 }
