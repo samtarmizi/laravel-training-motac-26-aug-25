@@ -22,6 +22,11 @@
                         <label for="serial_no" class="form-label">Serial No</label>
                         <input type="text" value="{{ $inventory->serial_no }}" class="form-control" id="serial_no" name="serial_no" readonly>
                     </div>
+                    <a 
+                        href="{{ route('inventories.index') }}" 
+                        class="btn btn-secondary">
+                        Back to Inventory Index
+                    </a>
                 </div>
             </div>
         </div>

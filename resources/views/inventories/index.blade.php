@@ -25,6 +25,23 @@
                                     <td>{{ $inventory->name }}</td>
                                     <td>{{ $inventory->quantity }}</td>  
                                     <td>{{ $inventory->serial_no }}</td>
+                                    <td>
+                                        <a 
+                                            href="{{ route('inventories.show', $inventory) }}" 
+                                            class="btn btn-info btn-sm">
+                                            Show
+                                        </a>
+                                        <a 
+                                            href="{{ route('inventories.edit', $inventory) }}" 
+                                            class="btn btn-warning btn-sm">
+                                            Edit
+                                        </a>
+                                        <a 
+                                            href="{{ route('inventories.destroy', $inventory) }}" 
+                                            class="btn btn-danger btn-sm"
+                                            onclick="confirm('Are you sure you want to delete this inventory?') || event.preventDefault();">
+                                            Delete
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
