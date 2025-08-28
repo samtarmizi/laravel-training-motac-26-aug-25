@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\BulkUploadInventoryController;
 use App\Http\Controllers\DeletedInventoryController;
+use App\Http\Controllers\ApplicationController;
 
 Route::redirect('/', '/home');
 
@@ -25,3 +26,7 @@ Route::post('/bulk-upload-inventories', [BulkUploadInventoryController::class, '
 Route::get('inventories-deleted', [DeletedInventoryController::class, 'index'])->name('inventories.deleted.index');
 Route::get('/inventories-deleted/{inventory}/restore', [DeletedInventoryController::class, 'restore'])->name('inventories.deleted.restore');
 Route::get('/inventories-deleted/{inventory}/force-delete', [DeletedInventoryController::class, 'forceDelete'])->name('inventories.deleted.force-delete');
+
+Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
+// api for query inventories by user_id
+Route::get('/inventories-by-user/{user_id}', [ApplicationController::class, 'getInventoriesByUser']);
