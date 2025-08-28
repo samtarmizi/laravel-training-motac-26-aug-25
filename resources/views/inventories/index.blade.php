@@ -15,6 +15,7 @@
                                 <th>Name</th>
                                 <th>Quantity</th>
                                 <th>Serial No</th>
+                                <th>User</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -25,6 +26,7 @@
                                     <td>{{ $inventory->name }}</td>
                                     <td>{{ $inventory->quantity }}</td>  
                                     <td>{{ $inventory->serial_no }}</td>
+                                    <td>{{ $inventory->user->name }} - {{ $inventory->user->email }}</td>
                                     <td>
                                         <a 
                                             href="{{ route('inventories.show', $inventory) }}" 

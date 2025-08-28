@@ -7,10 +7,15 @@ use App\Models\Inventory;
 
 class InventoryController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
     public function index()
     {
         // query all inventories from the table 'inventories' using model
-        $inventories = Inventory::all();
+        $inventories = Inventory::latest()->get();
 
         // return to view with $inventories (resources/views/inventories/index.blade.php)
         return view('inventories.index', compact('inventories'));
@@ -31,6 +36,7 @@ class InventoryController extends Controller
         $inventory->quantity = $request->quantity;
         $inventory->color = $request->color;
         $inventory->serial_no = $request->serial_no;
+        $inventory->user_id = auth()->user()->id;
         $inventory->save();
 
         // return to inventory index
