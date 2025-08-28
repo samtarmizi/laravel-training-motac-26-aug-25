@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Inventory;
 use App\Jobs\InventoryCreatedJob;
+use App\Notifications\StoreInventoryNotification;
 
 class InventoryController extends Controller
 {
@@ -43,6 +44,9 @@ class InventoryController extends Controller
         $inventory->save();
 
         InventoryCreatedJob::dispatch($inventory);
+
+        $user = auth()->user();
+        $user->notify(new StoreInventoryNotification());
 
         // return to inventory index
         return redirect('/inventories');
