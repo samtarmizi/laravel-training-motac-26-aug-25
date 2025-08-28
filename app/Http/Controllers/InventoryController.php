@@ -46,6 +46,8 @@ class InventoryController extends Controller
 
     public function show(Inventory $inventory)
     {
+        $this->authorize('view', $inventory);
+        
         return view('inventories.show', compact('inventory'));
     }
 
