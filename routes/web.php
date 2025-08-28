@@ -5,6 +5,7 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\BulkUploadInventoryController;
 use App\Http\Controllers\DeletedInventoryController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\APIPostController;
 
 Route::redirect('/', '/home');
 
@@ -30,3 +31,5 @@ Route::get('/inventories-deleted/{inventory}/force-delete', [DeletedInventoryCon
 Route::get('/applications/create', [ApplicationController::class, 'create'])->name('applications.create');
 // api for query inventories by user_id
 Route::get('/inventories-by-user/{user_id}', [ApplicationController::class, 'getInventoriesByUser']);
+
+Route::get('posts', [APIPostController::class, 'index'])->name('posts.index');
