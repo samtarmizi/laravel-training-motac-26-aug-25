@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\BulkUploadInventoryController;
+use App\Http\Controllers\DeletedInventoryController;
 
 Route::redirect('/', '/home');
 
@@ -20,3 +21,7 @@ Route::get('/inventories/{inventory}/destroy', [InventoryController::class, 'des
 
 Route::get('/bulk-upload-inventories', [BulkUploadInventoryController::class, 'create'])->name('inventories.bulk-upload.create');
 Route::post('/bulk-upload-inventories', [BulkUploadInventoryController::class, 'store'])->name('inventories.bulk-upload.store');
+
+Route::get('inventories-deleted', [DeletedInventoryController::class, 'index'])->name('inventories.deleted.index');
+Route::get('/inventories-deleted/{inventory}/restore', [DeletedInventoryController::class, 'restore'])->name('inventories.deleted.restore');
+Route::get('/inventories-deleted/{inventory}/force-delete', [DeletedInventoryController::class, 'forceDelete'])->name('inventories.deleted.force-delete');

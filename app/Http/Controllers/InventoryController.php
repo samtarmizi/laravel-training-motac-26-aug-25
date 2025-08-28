@@ -23,6 +23,8 @@ class InventoryController extends Controller
 
     public function create()
     {
+        $this->authorize('create', Inventory::class);
+        
         return view('inventories.create');
     }
 

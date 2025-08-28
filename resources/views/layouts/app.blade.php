@@ -33,9 +33,11 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('inventories.index') }}">Inventory Index</a>
                         </li>
+                        @can('create', App\Models\Inventory::class)
                         <li class="nav-item">
                             <a class="nav-link" href="{{ route('inventories.create') }}">Inventory Create</a>
                         </li>
+                        @endcan
                     </ul>
 
                     <!-- Right Side Of Navbar -->
