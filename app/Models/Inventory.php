@@ -11,6 +11,14 @@ class Inventory extends Model
     use HasFactory;
     use SoftDeletes;
 
+    protected $fillable = [
+        'name',
+        'quantity',
+        'color',
+        'serial_no',
+        'user_id',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
