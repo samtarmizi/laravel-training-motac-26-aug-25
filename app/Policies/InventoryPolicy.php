@@ -45,7 +45,7 @@ class InventoryPolicy
      */
     public function padam(User $user, Inventory $inventory): bool
     {
-        return $user->id === $inventory->user_id;
+        return $user->role == 'admin' || $user->id === $inventory->user_id;
     }
 
     /**

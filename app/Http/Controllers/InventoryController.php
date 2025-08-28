@@ -73,7 +73,7 @@ class InventoryController extends Controller
     public function destroy(Inventory $inventory)
     {
         $this->authorize('padam', $inventory);
-        
+
         // delete using model
         $inventory->delete();
 
