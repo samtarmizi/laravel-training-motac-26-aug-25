@@ -1,60 +1,66 @@
-@extends('layouts.app')
+@extends('admin.layouts.main')
 
 @section('content')
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">{{ __('Inventories Index') }}</div>
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Dashboard</h1>
+    <ol class="breadcrumb mb-4">
+        <li class="breadcrumb-item active">Dashboard</li>
+    </ol>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">{{ __('Inventories Index') }}</div>
 
-                <div class="card-body">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Quantity</th>
-                                <th>Serial No</th>
-                                <th>User</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($inventories as $inventory)
+                    <div class="card-body">
+                        <table class="table">
+                            <thead>
                                 <tr>
-                                    <td>{{ $inventory->id }}</td>
-                                    <td>{{ $inventory->name }}</td>
-                                    <td>{{ $inventory->quantity }}</td>  
-                                    <td>{{ $inventory->serial_no }}</td>
-                                    <td>{{ $inventory->user->name }} - {{ $inventory->user->email }}</td>
-                                    <td>
-                                        @can('view', $inventory)
-                                        <a 
-                                            href="{{ route('inventories.show', $inventory) }}" 
-                                            class="btn btn-info btn-sm">
-                                            Show
-                                        </a>
-                                        @endcan
-                                        @can('kemaskini', $inventory)
-                                        <a 
-                                            href="{{ route('inventories.edit', $inventory) }}" 
-                                            class="btn btn-warning btn-sm">
-                                            Edit
-                                        </a>
-                                        @endcan
-                                        @can('padam', $inventory)
-                                        <a 
-                                            href="{{ route('inventories.destroy', $inventory) }}" 
-                                            class="btn btn-danger btn-sm"
-                                            onclick="confirm('Are you sure you want to delete this inventory?') || event.preventDefault();">
-                                            Delete
-                                        </a>
-                                        @endcan
-                                    </td>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Quantity</th>
+                                    <th>Serial No</th>
+                                    <th>User</th>
+                                    <th>Actions</th>
                                 </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                @foreach ($inventories as $inventory)
+                                    <tr>
+                                        <td>{{ $inventory->id }}</td>
+                                        <td>{{ $inventory->name }}</td>
+                                        <td>{{ $inventory->quantity }}</td>  
+                                        <td>{{ $inventory->serial_no }}</td>
+                                        <td>{{ $inventory->user->name }} - {{ $inventory->user->email }}</td>
+                                        <td>
+                                            @can('view', $inventory)
+                                            <a 
+                                                href="{{ route('inventories.show', $inventory) }}" 
+                                                class="btn btn-info btn-sm">
+                                                Show
+                                            </a>
+                                            @endcan
+                                            @can('kemaskini', $inventory)
+                                            <a 
+                                                href="{{ route('inventories.edit', $inventory) }}" 
+                                                class="btn btn-warning btn-sm">
+                                                Edit
+                                            </a>
+                                            @endcan
+                                            @can('padam', $inventory)
+                                            <a 
+                                                href="{{ route('inventories.destroy', $inventory) }}" 
+                                                class="btn btn-danger btn-sm"
+                                                onclick="confirm('Are you sure you want to delete this inventory?') || event.preventDefault();">
+                                                Delete
+                                            </a>
+                                            @endcan
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

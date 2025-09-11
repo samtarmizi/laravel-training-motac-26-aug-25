@@ -10,6 +10,8 @@ use App\Http\Controllers\AuditController;
 
 Route::redirect('/', '/home');
 
+Route::view('/tema', 'admin.layouts.main');
+
 Auth::routes();
 
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
