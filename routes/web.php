@@ -6,6 +6,7 @@ use App\Http\Controllers\BulkUploadInventoryController;
 use App\Http\Controllers\DeletedInventoryController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\APIPostController;
+use App\Http\Controllers\AuditController;
 
 Route::redirect('/', '/home');
 
@@ -33,3 +34,5 @@ Route::get('/applications/create', [ApplicationController::class, 'create'])->na
 Route::get('/inventories-by-user/{user_id}', [ApplicationController::class, 'getInventoriesByUser']);
 
 Route::get('posts', [APIPostController::class, 'index'])->name('posts.index');
+
+Route::get('/audits', [AuditController::class, 'index'])->name('audits.index');
