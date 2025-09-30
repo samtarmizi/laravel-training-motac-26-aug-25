@@ -7,6 +7,8 @@ use App\Http\Controllers\DeletedInventoryController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\APIPostController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\ChatController;
+use Cloudstudio\Ollama\Facades\Ollama;
 
 Route::redirect('/', '/home');
 
@@ -38,3 +40,39 @@ Route::get('/inventories-by-user/{user_id}', [ApplicationController::class, 'get
 Route::get('posts', [APIPostController::class, 'index'])->name('posts.index');
 
 Route::get('/audits', [AuditController::class, 'index'])->name('audits.index');
+
+// Chat routes
+Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+Route::post('/chat/send', [ChatController::class, 'sendMessage'])->name('chat.send');
+Route::post('/chat/stream', [ChatController::class, 'sendMessageStream'])->name('chat.stream');
+Route::get('/chat/models', [ChatController::class, 'getModels'])->name('chat.models');
+
+Route::get('ask-ollama', function () {
+    // $response = Ollama::agent('You are an expert PHP developer.')
+    // ->prompt('Create a Laravel middleware that logs API requests with rate limiting')
+    // ->model('gemma3:1b')
+    // ->options(['temperature' => 0.2]) // Less creative for code
+    // ->ask();
+
+    $response = Ollama::agent('You are a helpful assistant.')
+    ->prompt('Explain quantum computing in simple terms')
+    ->model('gemma3:1b')
+    ->ask();
+
+    return $response;
+})->name('ask-ollama');
+
+Route::get('chat-ollama', function () {
+    $response = Http::post('http://127.0.0.1:11434/api/generate', [
+        'model' => 'gemma3:1b',
+        'prompt' => 
+        // [
+            'hello, can you help me with a laravel question?',
+        // ],
+        // 'temperature' => 0.2,
+        // 'max_tokens' => 1000,
+        'stream' => false,
+    ]);
+
+    return $response;
+})->name('chat-ollama');

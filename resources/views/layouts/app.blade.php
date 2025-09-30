@@ -12,6 +12,9 @@
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=Nunito" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Scripts -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
@@ -38,6 +41,11 @@
                             <a class="nav-link" href="{{ route('inventories.create') }}">Inventory Create</a>
                         </li>
                         @endcan
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ route('chat.index') }}">
+                                <i class="fas fa-robot"></i> AI Chat
+                            </a>
+                        </li>
                     </ul>
 
                     <!-- Right Side Of Navbar -->
