@@ -9,6 +9,9 @@ use App\Http\Controllers\APIPostController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\ChatController;
 use Cloudstudio\Ollama\Facades\Ollama;
+use App\Http\Controllers\FileController;
+
+use Illuminate\Support\Facades\Http;
 
 Route::redirect('/', '/home');
 
@@ -46,6 +49,14 @@ Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
 Route::post('/chat/send', [ChatController::class, 'sendMessage'])->name('chat.send');
 Route::post('/chat/stream', [ChatController::class, 'sendMessageStream'])->name('chat.stream');
 Route::get('/chat/models', [ChatController::class, 'getModels'])->name('chat.models');
+
+// File upload and RAG routes
+Route::get('/files', [FileController::class, 'index'])->name('files.index');
+Route::get('/files/list', [FileController::class, 'list'])->name('files.list');
+Route::post('/files/upload', [FileController::class, 'upload'])->name('files.upload');
+Route::post('/files/search', [FileController::class, 'search'])->name('files.search');
+Route::delete('/files/{id}', [FileController::class, 'destroy'])->name('files.destroy');
+Route::post('/files/{id}/process', [FileController::class, 'process'])->name('files.process');
 
 Route::get('ask-ollama', function () {
     // $response = Ollama::agent('You are an expert PHP developer.')

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Cloudstudio\Ollama\Facades\Ollama;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Models\File;
 
 class ChatController extends Controller
 {
@@ -39,9 +40,15 @@ class ChatController extends Controller
                 'temperature' => $temperature
             ]);
 
+            // Get relevant context from uploaded files using RAG
+            $context = $this->getRelevantContext($message);
+
+            // Build enhanced prompt with context
+            $enhancedPrompt = $this->buildEnhancedPrompt($message, $context);
+
             // Use Ollama Laravel package
             $response = Ollama::agent('You are a helpful AI assistant.')
-                ->prompt($message)
+                ->prompt($enhancedPrompt)
                 ->model($model)
                 ->options(['temperature' => (float)$temperature])
                 ->ask();
@@ -147,6 +154,96 @@ class ChatController extends Controller
                 'error' => 'Failed to connect to Ollama service'
             ], 500);
         }
+    }
+
+    /**
+     * Get relevant context from uploaded files using RAG
+     */
+    private function getRelevantContext($query, $limit = 3)
+    {
+        try {
+            // Generate embedding for the query
+            $queryEmbedding = Ollama::embed($query, 'nomic-embed-text');
+
+            // Get all processed files with embeddings
+            $files = File::where('is_processed', true)->whereNotNull('embeddings')->get();
+            
+            $results = [];
+
+            foreach ($files as $file) {
+                $embeddings = $file->embeddings;
+                
+                foreach ($embeddings as $embeddingData) {
+                    $similarity = $this->cosineSimilarity($queryEmbedding, $embeddingData['embedding']);
+                    
+                    if ($similarity > 0.3) { // Only include relevant results
+                        $results[] = [
+                            'file_name' => $file->original_name,
+                            'chunk_text' => $embeddingData['text'],
+                            'similarity' => $similarity
+                        ];
+                    }
+                }
+            }
+
+            // Sort by similarity and limit results
+            usort($results, function($a, $b) {
+                return $b['similarity'] <=> $a['similarity'];
+            });
+
+            return array_slice($results, 0, $limit);
+
+        } catch (\Exception $e) {
+            Log::error('RAG context retrieval error: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Build enhanced prompt with context
+     */
+    private function buildEnhancedPrompt($message, $context)
+    {
+        if (empty($context)) {
+            return $message;
+        }
+
+        $contextText = "Based on the following uploaded documents:\n\n";
+        
+        foreach ($context as $item) {
+            $contextText .= "From {$item['file_name']}:\n{$item['chunk_text']}\n\n";
+        }
+
+        $contextText .= "Please answer the following question using the information from the documents above when relevant:\n\n";
+        $contextText .= $message;
+
+        return $contextText;
+    }
+
+    /**
+     * Calculate cosine similarity between two vectors
+     */
+    private function cosineSimilarity($vectorA, $vectorB)
+    {
+        if (count($vectorA) !== count($vectorB)) {
+            return 0;
+        }
+
+        $dotProduct = 0;
+        $normA = 0;
+        $normB = 0;
+
+        for ($i = 0; $i < count($vectorA); $i++) {
+            $dotProduct += $vectorA[$i] * $vectorB[$i];
+            $normA += $vectorA[$i] * $vectorA[$i];
+            $normB += $vectorB[$i] * $vectorB[$i];
+        }
+
+        if ($normA == 0 || $normB == 0) {
+            return 0;
+        }
+
+        return $dotProduct / (sqrt($normA) * sqrt($normB));
     }
 
 }

@@ -284,6 +284,11 @@
                         <i class="fas fa-plus"></i> New Chat
                     </button>
 
+                    <!-- File Upload Button -->
+                    <a href="{{ route('files.index') }}" class="btn btn-outline-success btn-sm w-100 mb-3">
+                        <i class="fas fa-upload"></i> Upload Files
+                    </a>
+
                     <!-- Chat History -->
                     <div class="chat-history">
                         <h6 class="text-muted small">Recent Chats</h6>
