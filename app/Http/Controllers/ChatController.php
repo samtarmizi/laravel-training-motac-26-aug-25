@@ -26,37 +26,31 @@ class ChatController extends Controller
             'message' => 'required|string|max:2000',
             'model' => 'nullable|string',
             'temperature' => 'nullable|numeric|between:0,2',
-            'conversation_history' => 'nullable|array',
-            'conversation_history.*.role' => 'required|string|in:user,assistant',
-            'conversation_history.*.content' => 'required|string',
         ]);
 
         try {
             $message = $request->input('message');
             $model = $request->input('model', 'gemma3:1b');
             $temperature = $request->input('temperature', 0.7);
-            $conversationHistory = $request->input('conversation_history', []);
 
             \Log::info('Processing chat request', [
                 'message' => $message,
                 'model' => $model,
-                'temperature' => $temperature,
-                'conversation_length' => count($conversationHistory)
+                'temperature' => $temperature
             ]);
 
-            // Build conversation context
-            $conversationContext = $this->buildConversationContext($conversationHistory, $message);
-
-            // Use Ollama Laravel package with conversation context
-            $response = Ollama::agent('You are a helpful AI assistant. You have access to the conversation history to provide context-aware responses.')
-                ->prompt($conversationContext)
+            // Use Ollama Laravel package
+            $response = Ollama::agent('You are a helpful AI assistant.')
+                ->prompt($message)
                 ->model($model)
                 ->options(['temperature' => (float)$temperature])
                 ->ask();
 
             return response()->json([
                 'success' => true,
-                'response' => $response,
+                'response' => [
+                    'response' => $response
+                ],
                 'model' => $model,
                 'timestamp' => now()->toISOString()
             ]);
@@ -154,4 +148,5 @@ class ChatController extends Controller
             ], 500);
         }
     }
+
 }
