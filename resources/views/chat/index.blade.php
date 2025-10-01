@@ -62,6 +62,36 @@
             border-bottom-left-radius: 0.25rem;
         }
         
+        /* Markdown styling */
+        .message-content strong {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .message-content em {
+            font-style: italic;
+            color: #6c757d;
+        }
+        
+        .message-content code {
+            background: #e9ecef;
+            color: #e83e8c;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875em;
+        }
+        
+        .message-content ol, .message-content ul {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+        }
+        
+        .message-content li {
+            margin: 0.25rem 0;
+            line-height: 1.4;
+        }
+        
         .message-time {
             font-size: 0.75rem;
             color: #6c757d;
@@ -615,7 +645,13 @@
                 
                 const messageContent = document.createElement('div');
                 messageContent.className = 'message-content';
-                messageContent.textContent = content;
+                
+                // Convert markdown to HTML for assistant messages
+                if (sender === 'assistant') {
+                    messageContent.innerHTML = convertMarkdownToHtml(content);
+                } else {
+                    messageContent.textContent = content;
+                } 
                 
                 const messageTime = document.createElement('div');
                 messageTime.className = 'message-time';
@@ -635,6 +671,32 @@
                 
                 // Store in conversation
                 currentConversation.push({ sender, content, timestamp: new Date() });
+            }
+
+            function convertMarkdownToHtml(text) {
+                // Convert **text** to <strong>text</strong>
+                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                
+                // Convert *text* to <em>text</em> (but not if it's part of **)
+                text = text.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+                
+                // Convert `text` to <code>text</code>
+                text = text.replace(/`(.*?)`/g, '<code>$1</code>');
+                
+                // Convert line breaks to <br>
+                text = text.replace(/\n/g, '<br>');
+                
+                // Convert numbered lists (1. item)
+                text = text.replace(/^(\d+)\.\s(.+)$/gm, '<li><strong>$1.</strong> $2</li>');
+                
+                // Convert bullet points (- item or * item)
+                text = text.replace(/^[-*]\s(.+)$/gm, '<li>$1</li>');
+                
+                // Wrap consecutive list items in appropriate tags
+                text = text.replace(/(<li><strong>\d+\.<\/strong>.*<\/li>)/gs, '<ol>$1</ol>');
+                text = text.replace(/(<li>(?!<strong>\d+\.<\/strong>).*<\/li>)/gs, '<ul>$1</ul>');
+                
+                return text;
             }
 
             function showTypingIndicator() {
