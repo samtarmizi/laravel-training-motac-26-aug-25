@@ -9,8 +9,16 @@ use App\Http\Controllers\APIPostController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\ChatController;
 use Cloudstudio\Ollama\Facades\Ollama;
-
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
 Route::redirect('/', '/home');
+
+// call api ollama models
+Route::get('ollama-models', function () {
+    $response = Http::get('http://127.0.0.1:11434/api/tags');
+
+    return view('ollama-models', compact('response'));
+});
 
 Route::view('/tema', 'admin.layouts.main');
 
@@ -62,17 +70,16 @@ Route::get('ask-ollama', function () {
     return $response;
 })->name('ask-ollama');
 
-Route::get('chat-ollama', function () {
+Route::get('chat-ollama', function (Request $request) {
+    $message = $request->message;
+
     $response = Http::post('http://127.0.0.1:11434/api/generate', [
         'model' => 'gemma3:1b',
-        'prompt' => 
-        // [
-            'hello, can you help me with a laravel question?',
-        // ],
-        // 'temperature' => 0.2,
-        // 'max_tokens' => 1000,
+        'prompt' => $message,
         'stream' => false,
     ]);
 
-    return $response;
+    $message = $response->object()->response;
+
+    return view('chat-ollama', compact('message'));
 })->name('chat-ollama');
