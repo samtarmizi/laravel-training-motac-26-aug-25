@@ -8,6 +8,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\APIPostController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\OllamaEmbedController;
 use Cloudstudio\Ollama\Facades\Ollama;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
@@ -83,3 +84,10 @@ Route::get('chat-ollama', function (Request $request) {
 
     return view('chat-ollama', compact('message'));
 })->name('chat-ollama');
+
+// Ollama Embed routes
+Route::get('/ollama-embed', [OllamaEmbedController::class, 'index'])->name('ollama-embed.index');
+Route::post('/ollama-embed/upload', [OllamaEmbedController::class, 'upload'])->name('ollama-embed.upload');
+Route::post('/ollama-embed/chat', [OllamaEmbedController::class, 'chat'])->name('ollama-embed.chat');
+Route::delete('/ollama-embed/file/{fileId}', [OllamaEmbedController::class, 'deleteFile'])->name('ollama-embed.delete-file');
+Route::post('/ollama-embed/clear', [OllamaEmbedController::class, 'clearFiles'])->name('ollama-embed.clear');
