@@ -594,7 +594,7 @@
                     console.log('Response data:', data);
                     
                     if (data.success) {
-                        addMessage('assistant', data.response.response);
+                        addMessage('assistant', data.response.response.response);
                         updateStatus('Online', 'success');
                     } else {
                         addMessage('assistant', 'Sorry, I encountered an error: ' + (data.error || 'Unknown error'));
