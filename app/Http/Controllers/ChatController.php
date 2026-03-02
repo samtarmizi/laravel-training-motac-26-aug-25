@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Cloudstudio\Ollama\Facades\Ollama;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -39,17 +38,32 @@ class ChatController extends Controller
                 'temperature' => $temperature
             ]);
 
-            // Use Ollama Laravel package
-            $response = Ollama::agent('You are a helpful AI assistant.')
-                ->prompt($message)
-                ->model($model)
-                ->options(['temperature' => (float)$temperature])
-                ->ask();
+            // Use direct Ollama API (same as chat-ollama and stream endpoint)
+            $response = Http::timeout(120)->post('http://127.0.0.1:11434/api/generate', [
+                'model' => $model,
+                'prompt' => $message,
+                'stream' => false,
+                'options' => [
+                    'temperature' => (float) $temperature,
+                ],
+            ]);
+
+            if (!$response->successful()) {
+                Log::error('Ollama API error: ' . $response->body());
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Failed to connect to Ollama. Is it running at http://127.0.0.1:11434?',
+                    'timestamp' => now()->toISOString()
+                ], 500);
+            }
+
+            $body = $response->json();
+            $responseText = $body['response'] ?? '';
 
             return response()->json([
                 'success' => true,
                 'response' => [
-                    'response' => $response
+                    'response' => $responseText
                 ],
                 'model' => $model,
                 'timestamp' => now()->toISOString()

@@ -624,7 +624,8 @@
                     console.log('Response data:', data);
                     
                     if (data.success) {
-                        addMessage('assistant', data.response.response.response);
+                        const text = (data.response && data.response.response) || data.response || '';
+                        addMessage('assistant', text || 'No response received.');
                         updateStatus('Online', 'success');
                     } else {
                         addMessage('assistant', 'Sorry, I encountered an error: ' + (data.error || 'Unknown error'));
