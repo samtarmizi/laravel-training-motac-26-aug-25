@@ -39,9 +39,12 @@ class OllamaEmbedController extends Controller
             $filename = Str::uuid() . '.' . $uploadedFile->getClientOriginalExtension();
             $filePath = $uploadedFile->storeAs('temp-uploads', $filename, 'public');
 
-            // Extract text content
-            $content = $this->extractTextContent(storage_path('app/public/' . $filePath), $mimeType);
-            
+            // Full path for reading (works across environments)
+            $fullPath = Storage::disk('public')->path($filePath);
+
+            // Extract text content (throws on failure so we can return a clear JSON error)
+            $content = $this->extractTextContent($fullPath, $mimeType, $originalName);
+
             // Generate embeddings
             $embeddings = $this->generateEmbeddings($content);
 
@@ -205,16 +208,34 @@ class OllamaEmbedController extends Controller
         }
     }
 
-    private function extractTextContent($filePath, $mimeType)
+    /**
+     * Extract text from file for embedding. Throws on failure so upload can return a clear error.
+     */
+    private function extractTextContent(string $filePath, string $mimeType, string $originalName = ''): string
     {
-        try {
-            if (str_contains($mimeType, 'text/plain')) {
-                return file_get_contents($filePath);
-            } elseif (str_contains($mimeType, 'application/pdf')) {
+        if (!file_exists($filePath) || !is_readable($filePath)) {
+            throw new \RuntimeException('File could not be read after upload.');
+        }
+
+        if (str_contains($mimeType, 'text/plain')) {
+            $content = file_get_contents($filePath);
+            return $content !== false ? $content : '';
+        }
+
+        if (str_contains($mimeType, 'application/pdf')) {
+            try {
                 $parser = new PdfParser();
                 $pdf = $parser->parseFile($filePath);
-                return $pdf->getText();
-            } elseif (str_contains($mimeType, 'application/msword') || str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+                $text = $pdf->getText();
+                return $text !== null ? $text : '';
+            } catch (\Exception $e) {
+                Log::error('PDF extraction error: ' . $e->getMessage(), ['file' => $originalName]);
+                throw new \RuntimeException('PDF text extraction failed. The file may be corrupted, password-protected, or image-only (no selectable text). ' . $e->getMessage());
+            }
+        }
+
+        if (str_contains($mimeType, 'application/msword') || str_contains($mimeType, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')) {
+            try {
                 $phpWord = WordIOFactory::load($filePath);
                 $sections = $phpWord->getSections();
                 $content = '';
@@ -226,19 +247,18 @@ class OllamaEmbedController extends Controller
                     }
                 }
                 return $content;
-            } else {
-                return 'Unsupported file type for text extraction';
+            } catch (\Exception $e) {
+                Log::error('Word extraction error: ' . $e->getMessage(), ['file' => $originalName]);
+                throw new \RuntimeException('Word document text extraction failed: ' . $e->getMessage());
             }
-        } catch (\Exception $e) {
-            Log::error('Text extraction error: ' . $e->getMessage());
-            return 'Error extracting text from file';
         }
+
+        return 'Unsupported file type for text extraction';
     }
 
     private function generateEmbeddings($content)
     {
         try {
-            // Chunk the content
             $chunks = $this->chunkText($content, 500, 50);
             $embeddings = [];
 
@@ -249,6 +269,18 @@ class OllamaEmbedController extends Controller
                     'text' => $chunk,
                     'embedding' => $embedding
                 ];
+            }
+
+            // If all embeddings are empty, Ollama embed model may be missing or API wrong
+            $hasAny = false;
+            foreach ($embeddings as $e) {
+                if (!empty($e['embedding'])) {
+                    $hasAny = true;
+                    break;
+                }
+            }
+            if (!$hasAny && !empty($chunks)) {
+                Log::warning('Ollama returned no embeddings. Ensure embedding model is pulled: ollama pull nomic-embed-text');
             }
 
             return $embeddings;
@@ -265,23 +297,48 @@ class OllamaEmbedController extends Controller
 
     private function getEmbedding($text)
     {
+        $baseUrl = 'http://127.0.0.1:11434';
+
+        // Try newer Ollama API first: POST /api/embed with "input"
         try {
-            $response = Http::timeout(30)->post('http://127.0.0.1:11434/api/embeddings', [
+            $response = Http::timeout(30)->post($baseUrl . '/api/embed', [
                 'model' => 'nomic-embed-text',
-                'prompt' => $text
+                'input' => $text,
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                // New API returns "embeddings" array (single input = one vector)
+                if (isset($data['embeddings']) && is_array($data['embeddings']) && !empty($data['embeddings'])) {
+                    return $data['embeddings'][0];
+                }
+                if (isset($data['embedding']) && is_array($data['embedding'])) {
+                    return $data['embedding'];
+                }
+            } else {
+                Log::warning('Ollama /api/embed error: ' . $response->body());
+            }
+        } catch (\Exception $e) {
+            Log::warning('Ollama /api/embed request error: ' . $e->getMessage());
+        }
+
+        // Fallback: older Ollama API POST /api/embeddings with "prompt"
+        try {
+            $response = Http::timeout(30)->post($baseUrl . '/api/embeddings', [
+                'model' => 'nomic-embed-text',
+                'prompt' => $text,
             ]);
 
             if ($response->successful()) {
                 $data = $response->json();
                 return $data['embedding'] ?? [];
-            } else {
-                Log::error('Embedding API error: ' . $response->body());
-                return [];
             }
+            Log::error('Embedding API error: ' . $response->body());
         } catch (\Exception $e) {
             Log::error('Embedding request error: ' . $e->getMessage());
-            return [];
         }
+
+        return [];
     }
 
     private function findRelevantContent($promptEmbedding, $uploadedFiles, $limit = 3)
@@ -290,6 +347,9 @@ class OllamaEmbedController extends Controller
 
         foreach ($uploadedFiles as $file) {
             foreach ($file['embeddings'] as $embeddingData) {
+                if (empty($embeddingData['embedding']) || empty($promptEmbedding)) {
+                    continue;
+                }
                 $similarity = $this->cosineSimilarity($promptEmbedding, $embeddingData['embedding']);
                 
                 if ($similarity > 0.3) { // Only include relevant results

@@ -61,20 +61,63 @@
         }
         .message-content {
             display: inline-block;
-            max-width: 80%;
+            max-width: 85%;
             padding: 12px 16px;
             border-radius: 18px;
             word-wrap: break-word;
+            text-align: left;
         }
         .message.user .message-content {
             background: #007bff;
             color: white;
         }
         .message.assistant .message-content {
+            display: block;
+            max-width: 85%;
             background: #f8f9fa;
             color: #333;
             border: 1px solid #dee2e6;
         }
+        .message-content strong { font-weight: 600; color: #2c3e50; }
+        .message-content em { font-style: italic; color: #6c757d; }
+        .message-content code {
+            background: #e9ecef;
+            color: #e83e8c;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875em;
+            white-space: pre-wrap;
+        }
+        .message-content pre {
+            margin: 0.5rem 0;
+            padding: 0.75rem 1rem;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+            white-space: pre;
+            tab-size: 4;
+        }
+        .message-content pre code { background: none; color: inherit; padding: 0; font-size: 0.85em; }
+        .message-content h1, .message-content h2, .message-content h3, .message-content h4 {
+            margin: 0.75rem 0 0.35rem 0;
+            font-weight: 600;
+            color: #2c3e50;
+            line-height: 1.3;
+        }
+        .message-content h1 { font-size: 1.25em; }
+        .message-content h2 { font-size: 1.15em; }
+        .message-content h3 { font-size: 1.05em; }
+        .message-content h4 { font-size: 1em; }
+        .message-content blockquote {
+            margin: 0.5rem 0;
+            padding: 0.25rem 0 0.25rem 1rem;
+            border-left: 4px solid #007bff;
+            color: #495057;
+        }
+        .message-content ol, .message-content ul { margin: 0.5rem 0; padding-left: 1.5rem; }
+        .message-content li { margin: 0.25rem 0; line-height: 1.4; }
         .similarity-badge {
             font-size: 0.75em;
             padding: 2px 6px;
@@ -195,7 +238,8 @@
                             <div class="upload-area" id="uploadArea">
                                 <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
                                 <h6>Drag & Drop Files Here</h6>
-                                <p class="text-muted mb-3">or click to browse</p>
+                                <p class="text-muted mb-1">or click to browse</p>
+                                <p class="text-muted small mb-3">Max 5 MB per file (PDF, Word, text, images)</p>
                                 <input type="file" id="fileInput" multiple accept=".txt,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif" style="display: none;">
                                 <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
                                     <i class="fas fa-folder-open me-2"></i>Choose Files
@@ -358,25 +402,54 @@
         function uploadFile(file, index, total) {
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            if (csrfToken) {
+                formData.append('_token', csrfToken.getAttribute('content'));
+            }
+
+            const headers = {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            };
+            if (csrfToken) {
+                headers['X-CSRF-TOKEN'] = csrfToken.getAttribute('content');
+            }
 
             fetch('/ollama-embed/upload', {
                 method: 'POST',
+                headers: headers,
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => Promise.all([response.status, response.text()]))
+            .then(([status, text]) => {
+                const trimmed = text.trim();
+                if (trimmed.startsWith('<')) {
+                    console.error('Server returned HTML instead of JSON:', status, trimmed.substring(0, 300));
+                    if (status === 413) {
+                        throw new Error('File too large (HTTP 413). Use a file under 5 MB, or ask the server admin to increase upload_max_filesize and post_max_size in PHP and client_max_body_size in Nginx.');
+                    }
+                    throw new Error('Server returned an error page (HTTP ' + status + '). Try refreshing the page, check you are logged in, and upload again.');
+                }
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    console.error('Invalid JSON response:', trimmed.substring(0, 200));
+                    throw new Error('Server returned invalid response. Try refreshing the page and uploading again.');
+                }
+            })
             .then(data => {
                 if (data.success) {
                     uploadedFiles.push(data.file);
                     displayUploadedFile(data.file);
                     updateProgress((index + 1) / total * 100);
                 } else {
-                    showError('Upload failed: ' + data.error);
+                    const msg = data.error || data.message || (data.errors && typeof data.errors === 'object' ? Object.values(data.errors).flat().join(' ') : null) || 'Unknown error';
+                    showError('Upload failed: ' + msg);
                 }
             })
             .catch(error => {
                 console.error('Upload error:', error);
-                showError('Upload failed: ' + error.message);
+                showError('Upload failed: ' + (error.message || 'Network error. Try refreshing the page.'));
             });
         }
 
@@ -512,21 +585,75 @@
             });
         }
 
+        function convertMarkdownToHtml(text) {
+            if (!text || typeof text !== 'string') return '';
+            const escape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            text = text.replace(/\uFF0A/g, '*').replace(/\u2217/g, '*');
+            const codeBlocks = [];
+            text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+                const i = codeBlocks.length;
+                codeBlocks.push('<pre><code>' + escape(code.trim()) + '</code></pre>');
+                return '\x00CB' + i + '\x00';
+            });
+            function processInline(s) {
+                s = escape(s);
+                const boldParts = s.split(/\*\*/);
+                if (boldParts.length > 1) s = boldParts.map((part, i) => i % 2 === 1 ? '<strong>' + part + '</strong>' : part).join('');
+                s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+                s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+                return s;
+            }
+            const lines = text.split('\n');
+            const out = [];
+            let i = 0;
+            while (i < lines.length) {
+                const line = lines[i];
+                if (line.match(/^(#{1,4})\s+(.+)$/)) {
+                    const hMatch = line.match(/^(#{1,4})\s+(.+)$/);
+                    out.push('<h' + hMatch[1].length + '>' + processInline(hMatch[2]) + '</h' + hMatch[1].length + '>');
+                    i++; continue;
+                }
+                if (line.startsWith('> ')) {
+                    const quoteLines = [];
+                    while (i < lines.length && lines[i].startsWith('> ')) { quoteLines.push(processInline(lines[i].slice(2))); i++; }
+                    out.push('<blockquote>' + quoteLines.join('<br>') + '</blockquote>'); continue;
+                }
+                if (/^[-*]\s+/.test(line)) {
+                    const items = [];
+                    while (i < lines.length && /^[-*]\s+/.test(lines[i])) { items.push('<li>' + processInline(lines[i].replace(/^[-*]\s+/, '')) + '</li>'); i++; }
+                    out.push('<ul>' + items.join('') + '</ul>'); continue;
+                }
+                if (/^\d+\.\s+/.test(line)) {
+                    const items = [];
+                    while (i < lines.length && /^\d+\.\s+/.test(lines[i])) { items.push('<li>' + processInline(lines[i].replace(/^\d+\.\s+/, '')) + '</li>'); i++; }
+                    out.push('<ol>' + items.join('') + '</ol>'); continue;
+                }
+                if (line.trim() === '') { out.push('<br>'); i++; continue; }
+                out.push(processInline(line) + '<br>');
+                i++;
+            }
+            let result = out.join('');
+            codeBlocks.forEach((html, idx) => { result = result.replace('\x00CB' + idx + '\x00', html); });
+            return result.replace(/<br>\s*$/, '');
+        }
+
         function addMessage(sender, content, relevantContent = null, similarityScores = null, sources = null) {
             const messagesContainer = document.getElementById('messagesContainer');
             
-            // Remove welcome message if it exists
             const welcomeMessage = messagesContainer.querySelector('.welcome-message');
-            if (welcomeMessage) {
-                welcomeMessage.remove();
-            }
+            if (welcomeMessage) welcomeMessage.remove();
             
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             
             const messageContent = document.createElement('div');
             messageContent.className = 'message-content';
-            messageContent.innerHTML = content;
+            const str = typeof content === 'string' ? content : (content ? String(content) : '');
+            if (sender === 'assistant') {
+                messageContent.innerHTML = convertMarkdownToHtml(str);
+            } else {
+                messageContent.textContent = str;
+            }
             
             // Add relevant content references if available
             if (relevantContent && relevantContent.length > 0) {

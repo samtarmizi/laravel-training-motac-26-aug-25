@@ -43,10 +43,12 @@
         
         .message-content {
             display: inline-block;
-            max-width: 70%;
+            max-width: 85%;
+            min-width: 0;
             padding: 0.75rem 1rem;
             border-radius: 1rem;
             word-wrap: break-word;
+            text-align: left;
         }
         
         .message.user .message-content {
@@ -56,23 +58,26 @@
         }
         
         .message.assistant .message-content {
+            display: block;
             background: #f8f9fa;
             color: #333;
             border: 1px solid #dee2e6;
             border-bottom-left-radius: 0.25rem;
+            max-width: 85%;
         }
         
-        /* Markdown styling */
+        /* Markdown inside bubbles */
+        .message-content {
+            word-wrap: break-word;
+        }
         .message-content strong {
             font-weight: 600;
             color: #2c3e50;
         }
-        
         .message-content em {
             font-style: italic;
             color: #6c757d;
         }
-        
         .message-content code {
             background: #e9ecef;
             color: #e83e8c;
@@ -80,13 +85,44 @@
             border-radius: 0.25rem;
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             font-size: 0.875em;
+            white-space: pre-wrap;
         }
-        
+        .message-content pre {
+            margin: 0.5rem 0;
+            padding: 0.75rem 1rem;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            border-radius: 0.375rem;
+            overflow-x: auto;
+            white-space: pre;
+            tab-size: 4;
+        }
+        .message-content pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            font-size: 0.85em;
+        }
+        .message-content h1, .message-content h2, .message-content h3, .message-content h4 {
+            margin: 0.75rem 0 0.35rem 0;
+            font-weight: 600;
+            color: #2c3e50;
+            line-height: 1.3;
+        }
+        .message-content h1 { font-size: 1.25em; }
+        .message-content h2 { font-size: 1.15em; }
+        .message-content h3 { font-size: 1.05em; }
+        .message-content h4 { font-size: 1em; }
+        .message-content blockquote {
+            margin: 0.5rem 0;
+            padding: 0.25rem 0 0.25rem 1rem;
+            border-left: 4px solid #007bff;
+            color: #495057;
+        }
         .message-content ol, .message-content ul {
             margin: 0.5rem 0;
             padding-left: 1.5rem;
         }
-        
         .message-content li {
             margin: 0.25rem 0;
             line-height: 1.4;
@@ -624,7 +660,8 @@
                     console.log('Response data:', data);
                     
                     if (data.success) {
-                        const text = (data.response && data.response.response) || data.response || '';
+                        const raw = data.response && data.response.response !== undefined ? data.response.response : data.response;
+                        const text = typeof raw === 'string' ? raw : (raw && typeof raw === 'object' && typeof raw.response === 'string' ? raw.response : '');
                         addMessage('assistant', text || 'No response received.');
                         updateStatus('Online', 'success');
                     } else {
@@ -647,11 +684,11 @@
                 const messageContent = document.createElement('div');
                 messageContent.className = 'message-content';
                 
-                // Convert markdown to HTML for assistant messages
+                const str = typeof content === 'string' ? content : (content ? String(content) : '');
                 if (sender === 'assistant') {
-                    messageContent.innerHTML = convertMarkdownToHtml(content);
+                    messageContent.innerHTML = convertMarkdownToHtml(str);
                 } else {
-                    messageContent.textContent = content;
+                    messageContent.textContent = str;
                 } 
                 
                 const messageTime = document.createElement('div');
@@ -675,29 +712,89 @@
             }
 
             function convertMarkdownToHtml(text) {
-                // Convert **text** to <strong>text</strong>
-                text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                
-                // Convert *text* to <em>text</em> (but not if it's part of **)
-                text = text.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
-                
-                // Convert `text` to <code>text</code>
-                text = text.replace(/`(.*?)`/g, '<code>$1</code>');
-                
-                // Convert line breaks to <br>
-                text = text.replace(/\n/g, '<br>');
-                
-                // Convert numbered lists (1. item)
-                text = text.replace(/^(\d+)\.\s(.+)$/gm, '<li><strong>$1.</strong> $2</li>');
-                
-                // Convert bullet points (- item or * item)
-                text = text.replace(/^[-*]\s(.+)$/gm, '<li>$1</li>');
-                
-                // Wrap consecutive list items in appropriate tags
-                text = text.replace(/(<li><strong>\d+\.<\/strong>.*<\/li>)/gs, '<ol>$1</ol>');
-                text = text.replace(/(<li>(?!<strong>\d+\.<\/strong>).*<\/li>)/gs, '<ul>$1</ul>');
-                
-                return text;
+                if (!text || typeof text !== 'string') return '';
+                const escape = (s) => String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+
+                // Normalize Unicode asterisks to ASCII * so ** matches
+                text = text.replace(/\uFF0A/g, '*').replace(/\u2217/g, '*');
+
+                const codeBlocks = [];
+                text = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+                    const i = codeBlocks.length;
+                    codeBlocks.push('<pre><code>' + escape(code.trim()) + '</code></pre>');
+                    return '\x00CB' + i + '\x00';
+                });
+
+                function processInline(s) {
+                    s = escape(s);
+                    // Bold: split by ** and wrap every other segment (handles all cases, no regex edge cases)
+                    const boldParts = s.split(/\*\*/);
+                    if (boldParts.length > 1) {
+                        s = boldParts.map((part, i) => i % 2 === 1 ? '<strong>' + part + '</strong>' : part).join('');
+                    }
+                    // Italic: single * (avoid matching inside **)
+                    s = s.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+                    // Inline code
+                    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+                    return s;
+                }
+
+                const lines = text.split('\n');
+                const out = [];
+                let i = 0;
+                while (i < lines.length) {
+                    const line = lines[i];
+                    const hMatch = line.match(/^(#{1,4})\s+(.+)$/);
+                    if (hMatch) {
+                        out.push('<h' + hMatch[1].length + '>' + processInline(hMatch[2]) + '</h' + hMatch[1].length + '>');
+                        i++;
+                        continue;
+                    }
+                    if (line.startsWith('> ')) {
+                        const quoteLines = [];
+                        while (i < lines.length && lines[i].startsWith('> ')) {
+                            quoteLines.push(processInline(lines[i].slice(2)));
+                            i++;
+                        }
+                        out.push('<blockquote>' + quoteLines.join('<br>') + '</blockquote>');
+                        continue;
+                    }
+                    if (/^[-*]\s+/.test(line)) {
+                        const items = [];
+                        while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+                            items.push('<li>' + processInline(lines[i].replace(/^[-*]\s+/, '')) + '</li>');
+                            i++;
+                        }
+                        out.push('<ul>' + items.join('') + '</ul>');
+                        continue;
+                    }
+                    if (/^\d+\.\s+/.test(line)) {
+                        const items = [];
+                        while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+                            items.push('<li>' + processInline(lines[i].replace(/^\d+\.\s+/, '')) + '</li>');
+                            i++;
+                        }
+                        out.push('<ol>' + items.join('') + '</ol>');
+                        continue;
+                    }
+                    if (line.trim() === '') {
+                        out.push('<br>');
+                        i++;
+                        continue;
+                    }
+                    out.push(processInline(line) + '<br>');
+                    i++;
+                }
+
+                let result = out.join('');
+                codeBlocks.forEach((html, idx) => {
+                    result = result.replace('\x00CB' + idx + '\x00', html);
+                });
+                return result.replace(/<br>\s*$/, '');
             }
 
             function showTypingIndicator() {
